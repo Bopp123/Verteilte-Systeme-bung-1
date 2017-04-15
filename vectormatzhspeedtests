@@ -1,0 +1,36 @@
+1000
+
+Single:
+warm-up phase ended with result hash 1926024663
+Computation is performed on 4 processors
+timing phase ended with result hash 708564046
+a + b took 0.0012ms to compute.
+a x b took 1.9673ms to compute.
+
+Multi:
+warm-up phase ended with result hash 1926024663
+Computation is performed on 4 processors
+timing phase ended with result hash 708564046
+a + b took 0.1891ms to compute.
+a x b took 2.2887ms to compute.
+
+
+------------------------------------
+
+5000
+
+Multi:
+
+warm-up phase ended with result hash 1926024663
+Computation is performed on 4 processors
+timing phase ended with result hash 708564046
+a + b took 0.1990ms to compute.
+a x b took 18.0797ms to compute.
+
+Single:
+
+warm-up phase ended with result hash 1926024663
+Computation is performed on 4 processors
+timing phase ended with result hash 708564046
+a + b took 0.0072ms to compute.
+a x b took 64.8179ms to compute.
