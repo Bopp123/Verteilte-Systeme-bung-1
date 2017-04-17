@@ -4,93 +4,85 @@ import java.util.Arrays;
 
 public class VectorMathMultiThreaded {
 	
-	
-	
+	private static final int PROCESSOR_COUNT=Runtime.getRuntime().availableProcessors();
 	
 	private static class Calculator implements Runnable{
-		
-		
-		private final double[] resultAdd;
-		private final double[][] resultMux;
-		private final double[] left;
-		private final double[] right;
-		private final boolean adding;
+				
+		private double[] resultAdd;
+		private double[][] resultMux;
+		private final double[] a;
+		private final double[] b;
+		private boolean adding;
 		private final int start;
-		
-		
+		private final int end;
 
-		public Calculator(double[] left, double[] right,int start,  double[] resultAdd,double[][] resultMux, boolean adding) {
-			super();
-			this.left = left;
-			this.right = right;
-			this.resultAdd = resultAdd;
-			this.resultMux = resultMux;
-			this.adding = adding;
-			this.start= start;
+		private Calculator(double[] a, double[] b, int start, int end) {
+			this.a = a;
+			this.b = b;
+			this.start = start;
+			this.end = end;
 		}
-		
-		
-		
-		public double[] getResultAdd() {
-			return resultAdd;
-		}
-
-
-
-		public double[][] getResultMux() {
-			return resultMux;
-		}
-
 		/**
-		 * Sums two vectors within a single thread.
-		 * @param left the first operand
-		 * @param right the second operand
-		 * @return the resulting vector
-		 * @throws NullPointerException if one of the given parameters is {@code null}
-		 * @throws IllegalArgumentException if the given parameters do not share the same length
+		 * Creates a new instance which adds two vectors.
 		 */
-		static public void add (final double[] left, final double[] right, final double[] result, int start) {
-			if (left.length != right.length) throw new IllegalArgumentException();
-			for (int x = 0; x < left.length; ++x) {
-				result[x + start] = left[x] + right[x];
+		public Calculator(double[] a, double[] b, int start, int end, double[] resultAdd) {
+			this(a,b,start,end);
+			this.resultAdd = resultAdd;
+			this.adding=true;
+		}
+		/**
+		 * Creates a new instance which multiplies two vectors.
+		 */
+		public Calculator(double[] a, double[] b, int start, int end, double[][] resultMux) {
+			this(a,b,start,end);
+			this.resultMux = resultMux;
+			this.adding=false;
+		}
+				
+		/**
+		 * Sums the vectors within a single thread.
+		 * @throws NullPointerException if one of the vectors is {@code null}
+		 */
+		private void add () {
+			for (int x = start; x < end; ++x) {
+				resultAdd[x] = a[x] + b[x];
 			}
 		}
+		
 		/**
-		 * Multiplexes two vectors within a single thread.
-		 * @param left the first operand
-		 * @param right the second operand
-		 * @return the resulting matrix
-		 * @throws NullPointerException if one of the given parameters is {@code null}
+		 * Multiplies the vectors within a single thread.
+		 * @throws NullPointerException if one of the vectors is {@code null}
 		 */
-		static public void mux (final double[] left, final double[] right, final double[][] result, int start ) {
-			for (int x = 0; x < left.length; ++x) {
-				for (int rightIndex = 0; rightIndex < right.length; ++rightIndex) {
-					result[x][start + rightIndex] = left[ x] * right[rightIndex];
+		private void mux () {
+			for (int x = start; x < end; ++x) {
+				for (int y = 0; y < b.length; ++y) {
+					resultMux[x][y] = a[x] * b[y];
 				}
 			}
 		}
-
-
+		
+		/**
+		 * Multiplies or adds the vectors depending on the parameters with which this object was constructed.
+		 * {@see Calculator#add()}
+		 * {@see Calculator#mux()}
+		 * {@see java.lang.Runnable#run()}
+		 * */
 		@Override
 		public void run() {
 			if(adding){
-				 add(this.left, this.right, this.resultAdd, this.start);
+				 add();
 			}else{
-				 mux(this.left, this.right, this.resultMux, this.start);
-			}
-
-			
+				 mux();
+			}		
 		}
-		
 	}
-
 
 	/**
 	 * Runs both vector summation and vector multiplexing for demo purposes.
 	 * @param args the argument array
 	 */
 	static public void main (final String[] args) {
-		final int size = args.length == 0 ? 3000 : Integer.parseInt(args[0]);
+		final int size = args.length == 0 ? 1000 : Integer.parseInt(args[0]);
 	
 		// initialize operand vectors
 		final double[] a = new double[size], b = new double[size];
@@ -112,7 +104,7 @@ public class VectorMathMultiThreaded {
 		}
 		System.out.format("warm-up phase ended with result hash %d\n", resultHash);
 	
-		System.out.format("Computation is performed on %s processors\n", Runtime.getRuntime().availableProcessors());
+		System.out.format("Computation is performed on %s processors\n",PROCESSOR_COUNT);
 		final long timestamp0 = System.currentTimeMillis();
 		for (int loop = 0; loop < 10000; ++loop) {
 			final double[] sum = addMulti(a, b);
@@ -145,53 +137,49 @@ public class VectorMathMultiThreaded {
 		}
 	}
 
-
 	private static double[][] muxMulti(double[] a, double[] b) {
+		if (a.length != b.length) 
+			throw new IllegalArgumentException();
+		
 		double[][] resultMux = new double[a.length][b.length];
-		int proccesCount  = Runtime.getRuntime().availableProcessors();
-		Thread[] threads = new Thread[proccesCount];
-		float nDouble = a.length/ (float) proccesCount;
+		Thread[] threads = new Thread[PROCESSOR_COUNT];
+		float nDouble = a.length/ (float) PROCESSOR_COUNT;
 		int n = (int) Math.ceil(nDouble);
-		for (int i = 0; i < proccesCount; i++) {
+		for (int i = 0; i < PROCESSOR_COUNT; i++) {
 			int start = i*n;
-			int end = i*n + n;
-			if(end>= a.length) end = a.length;
-			double[] subA = Arrays.copyOfRange(a, start , end);
-			double[] subB = Arrays.copyOfRange(b, start , end);
-			Calculator muxCalc = new Calculator(a, subB, start, null, resultMux, false);
+			int end = start + n;
+			if(end> a.length) end = a.length;
+			Calculator muxCalc = new Calculator(a, b, start,end, resultMux);
 			Thread thread = new Thread(muxCalc);
 			threads[i] = thread;
 			thread.start();
 		}
-		for (Thread thread : threads) {
-			try {
-				thread.join();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+		joinOnThreads(threads);
 		return resultMux;
 	}
 
-
 	private static double[] addMulti(double[] a, double[] b) {
+		if (a.length != b.length) 
+			throw new IllegalArgumentException();
+		
 		double[] resultAdd = new double[a.length];
-		int proccesCount  = Runtime.getRuntime().availableProcessors();
-		Thread[] threads = new Thread[proccesCount];
-		float nDouble = a.length/ (float) proccesCount;
+		Thread[] threads = new Thread[PROCESSOR_COUNT];
+		float nDouble = a.length/ (float) PROCESSOR_COUNT;
 		int n = (int) Math.ceil(nDouble);
-		for (int i = 0; i < proccesCount; i++) {
+		for (int i = 0; i < PROCESSOR_COUNT; i++) {
 			int start = i*n;
-			int end = i*n + n;
-			if(end>= a.length) end = a.length;
-			double[] subA = Arrays.copyOfRange(a, start , end);
-			double[] subB = Arrays.copyOfRange(b, start , end);
-			Calculator addCalc = new Calculator(subA, subB, start, resultAdd, null, true);
+			int end = start + n;
+			if(end> a.length) end = a.length;
+			Calculator addCalc = new Calculator(a, b, start, end,resultAdd);
 			Thread thread = new Thread(addCalc);
 			threads[i] = thread;
 			thread.start();
 		}
+		joinOnThreads(threads);
+		return resultAdd;
+	}
+	
+	private static void joinOnThreads(Thread[] threads){
 		for (Thread thread : threads) {
 			try {
 				thread.join();
@@ -200,10 +188,5 @@ public class VectorMathMultiThreaded {
 				e.printStackTrace();
 			}
 		}
-		return resultAdd;
 	}
-
-
-	
-
 }
